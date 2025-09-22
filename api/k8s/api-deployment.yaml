@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tt-stock-api
+  namespace: team-dev
+  labels:
+    app: tt-stock-api
+spec:
+  selector:
+    matchLabels:
+      app: tt-stock-api
+  template:
+    metadata:
+      labels:
+        app: tt-stock-api
+    spec:
+      containers:
+      - name: api
+        image: ttstock-api:latest  # Change this to your registry
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: SERVER_PORT
+        - name: SERVER_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: SERVER_HOST
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_PORT
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tt-stock-secrets
+              key: DB_PASSWORD
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_NAME
+        - name: DB_SSL_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_SSL_MODE
+        - name: DB_MAX_OPEN_CONNS
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_MAX_OPEN_CONNS
+        - name: DB_MAX_IDLE_CONNS
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: DB_MAX_IDLE_CONNS
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tt-stock-secrets
+              key: JWT_SECRET_KEY
+        - name: JWT_TOKEN_LIFETIME
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: JWT_TOKEN_LIFETIME
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: APP_ENV
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: tt-stock-config
+              key: LOG_LEVEL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tt-stock-api-service
+  namespace: team-dev
+  labels:
+    app: tt-stock-api
+spec:
+  selector:
+    app: tt-stock-api
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP

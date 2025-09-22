@@ -1,0 +1,1254 @@
+openapi: 3.0.3
+info:
+  title: TT Stock Backend API
+  description: |
+    A comprehensive tire and wheel inventory management system API built with Go and Gin framework.
+    
+    ## Features
+    - User authentication and authorization with JWT tokens
+    - Product management (tires and wheels)
+    - Stock movement tracking
+    - Low stock alerts
+    - Business intelligence and reporting
+    - Role-based access control (Admin, Owner, Staff)
+    
+    ## Authentication
+    All protected endpoints require a valid JWT token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Rate Limiting
+    API requests are rate limited to prevent abuse. Current limits:
+    - 100 requests per minute per IP
+    - 1000 requests per hour per user
+    
+    ## Response Times
+    All API endpoints are designed to respond within 200ms under normal load conditions.
+  version: 1.0.0
+  contact:
+    name: TT Stock API Support
+    email: support@ttstock.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.ttstock.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Products
+    description: Product management and search
+  - name: Stock
+    description: Stock movement tracking and inventory management
+  - name: Alerts
+    description: Low stock alerts and notifications
+  - name: Health
+    description: System health and status checks
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the basic health status of the API
+      operationId: getHealth
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /health/detailed:
+    get:
+      tags:
+        - Health
+      summary: Detailed health check
+      description: Returns detailed health information including database connectivity
+      operationId: getDetailedHealth
+      responses:
+        '200':
+          description: Detailed health information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  database:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: "connected"
+                      response_time:
+                        type: string
+                        example: "5ms"
+                  memory:
+                    type: object
+                    properties:
+                      used:
+                        type: string
+                        example: "45MB"
+                      total:
+                        type: string
+                        example: "128MB"
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with phone number and PIN
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logout user and invalidate session
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh token
+      description: Refresh JWT token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/products:
+    get:
+      tags:
+        - Products
+      summary: List products
+      description: Get a paginated list of products with optional filtering
+      operationId: listProducts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          description: Filter by product type
+          required: false
+          schema:
+            type: string
+            enum: [Tire, Wheel]
+        - name: brand
+          in: query
+          description: Filter by brand
+          required: false
+          schema:
+            type: string
+        - name: in_stock
+          in: query
+          description: Filter by stock availability
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Products
+      summary: Create product
+      description: Create a new product (Admin/Owner only)
+      operationId: createProduct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product
+      description: Get a specific product by ID
+      operationId: getProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Products
+      summary: Update product
+      description: Update a product (Admin/Owner only)
+      operationId: updateProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Delete a product (Admin only)
+      operationId: deleteProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Product deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/products/search:
+    get:
+      tags:
+        - Products
+      summary: Search products
+      description: Search products with advanced filtering and pagination
+      operationId: searchProducts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          description: Search query
+          required: false
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Filter by product type
+          required: false
+          schema:
+            type: string
+            enum: [Tire, Wheel]
+        - name: brand
+          in: query
+          description: Filter by brand
+          required: false
+          schema:
+            type: string
+        - name: min_price
+          in: query
+          description: Minimum price filter
+          required: false
+          schema:
+            type: number
+            format: float
+        - name: max_price
+          in: query
+          description: Maximum price filter
+          required: false
+          schema:
+            type: number
+            format: float
+        - name: stock_status
+          in: query
+          description: Filter by stock status
+          required: false
+          schema:
+            type: string
+            enum: [available, low_stock, out_of_stock]
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSearchResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/products/low-stock:
+    get:
+      tags:
+        - Products
+      summary: Get low stock products
+      description: Get products with low stock levels
+      operationId: getLowStockProducts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of low stock products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/stock/movements:
+    get:
+      tags:
+        - Stock
+      summary: List stock movements
+      description: Get a paginated list of stock movements
+      operationId: listStockMovements
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: product_id
+          in: query
+          description: Filter by product ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: movement_type
+          in: query
+          description: Filter by movement type
+          required: false
+          schema:
+            type: string
+            enum: [incoming, outgoing, sale, adjustment, return]
+        - name: start_date
+          in: query
+          description: Start date filter (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: End date filter (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of stock movements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Stock
+      summary: Create stock movement
+      description: Create a new stock movement (Staff+ only)
+      operationId: createStockMovement
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockMovementCreateRequest'
+      responses:
+        '201':
+          description: Stock movement created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/stock/movements/{id}:
+    get:
+      tags:
+        - Stock
+      summary: Get stock movement
+      description: Get a specific stock movement by ID
+      operationId: getStockMovement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Stock movement ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Stock movement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Stock movement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/stock/sale:
+    post:
+      tags:
+        - Stock
+      summary: Process sale
+      description: Process a product sale (Staff+ only)
+      operationId: processSale
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+      responses:
+        '201':
+          description: Sale processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/alerts:
+    get:
+      tags:
+        - Alerts
+      summary: List alerts
+      description: Get a paginated list of alerts
+      operationId: listAlerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          description: Filter by alert type
+          required: false
+          schema:
+            type: string
+            enum: [low_stock, out_of_stock, price_change, system]
+        - name: priority
+          in: query
+          description: Filter by priority
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: unread_only
+          in: query
+          description: Show only unread alerts
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/alerts/{id}/read:
+    put:
+      tags:
+        - Alerts
+      summary: Mark alert as read
+      description: Mark an alert as read
+      operationId: markAlertAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Alert ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Alert marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserLoginRequest:
+      type: object
+      required:
+        - phone_number
+        - pin
+      properties:
+        phone_number:
+          type: string
+          description: User's phone number
+          example: "1234567890"
+        pin:
+          type: string
+          description: User's PIN (4-6 digits)
+          example: "1234"
+
+    UserLoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: JWT refresh token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration time
+          example: "2024-01-16T10:30:00Z"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        phone_number:
+          type: string
+          example: "1234567890"
+        name:
+          type: string
+          example: "John Doe"
+        role:
+          type: string
+          enum: [Admin, Owner, Staff]
+          example: "Staff"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-01-15T10:30:00Z"
+
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          example: "MIC-PS4-225-45-17"
+        description:
+          type: string
+          nullable: true
+          example: "High-performance summer tire"
+        cost_price:
+          type: number
+          format: float
+          example: 120.50
+        selling_price:
+          type: number
+          format: float
+          example: 180.75
+        quantity_on_hand:
+          type: integer
+          example: 25
+        low_stock_threshold:
+          type: integer
+          example: 5
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    ProductCreateRequest:
+      type: object
+      required:
+        - type
+        - brand
+        - model
+        - sku
+        - cost_price
+        - selling_price
+        - quantity_on_hand
+        - low_stock_threshold
+      properties:
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          example: "MIC-PS4-225-45-17"
+        description:
+          type: string
+          nullable: true
+          example: "High-performance summer tire"
+        cost_price:
+          type: number
+          format: float
+          minimum: 0
+          example: 120.50
+        selling_price:
+          type: number
+          format: float
+          minimum: 0
+          example: 180.75
+        quantity_on_hand:
+          type: integer
+          minimum: 0
+          example: 25
+        low_stock_threshold:
+          type: integer
+          minimum: 0
+          example: 5
+
+    ProductUpdateRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          example: "MIC-PS4-225-45-17"
+        description:
+          type: string
+          nullable: true
+          example: "High-performance summer tire"
+        cost_price:
+          type: number
+          format: float
+          minimum: 0
+          example: 120.50
+        selling_price:
+          type: number
+          format: float
+          minimum: 0
+          example: 180.75
+        quantity_on_hand:
+          type: integer
+          minimum: 0
+          example: 25
+        low_stock_threshold:
+          type: integer
+          minimum: 0
+          example: 5
+        is_active:
+          type: boolean
+          example: true
+
+    ProductListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    ProductSearchResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+        total_count:
+          type: integer
+          example: 150
+
+    StockMovementResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        product_id:
+          type: integer
+          format: int64
+          example: 1
+        user_id:
+          type: integer
+          format: int64
+          example: 1
+        movement_type:
+          type: string
+          enum: [incoming, outgoing, sale, adjustment, return]
+          example: "sale"
+        quantity:
+          type: integer
+          example: -2
+        reason:
+          type: string
+          nullable: true
+          example: "Customer purchase"
+        reference:
+          type: string
+          nullable: true
+          example: "INV-2024-001"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    StockMovementCreateRequest:
+      type: object
+      required:
+        - product_id
+        - movement_type
+        - quantity
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1
+        movement_type:
+          type: string
+          enum: [incoming, outgoing, sale, adjustment, return]
+          example: "incoming"
+        quantity:
+          type: integer
+          example: 10
+        reason:
+          type: string
+          nullable: true
+          example: "New stock received"
+        reference:
+          type: string
+          nullable: true
+          example: "PO-2024-001"
+
+    StockMovementListResponse:
+      type: object
+      properties:
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockMovementResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    SaleRequest:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        reference:
+          type: string
+          nullable: true
+          example: "SALE-2024-001"
+
+    AlertResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        type:
+          type: string
+          enum: [low_stock, out_of_stock, price_change, system]
+          example: "low_stock"
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          example: "medium"
+        title:
+          type: string
+          example: "Low Stock Alert"
+        message:
+          type: string
+          example: "Product MIC-PS4-225-45-17 is running low on stock"
+        product_id:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1
+        is_read:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    AlertListResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 150
+        total_pages:
+          type: integer
+          example: 8
+        has_next:
+          type: boolean
+          example: true
+        has_prev:
+          type: boolean
+          example: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid request data"
+        message:
+          type: string
+          example: "The provided data is invalid"
+        details:
+          type: object
+          additionalProperties: true
+          example:
+            field: "phone_number"
+            reason: "Phone number is required"
+
+security:
+  - bearerAuth: []

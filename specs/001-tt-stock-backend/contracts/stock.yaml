@@ -1,0 +1,686 @@
+openapi: 3.0.3
+info:
+  title: TT Stock API - Stock Management
+  description: Stock movement and inventory management endpoints for TT Stock Backend API
+  version: 1.0.0
+  contact:
+    name: TT Stock API
+    email: support@ttstock.com
+
+servers:
+  - url: https://api.ttstock.com/v1
+    description: Production server
+  - url: http://localhost:8080/v1
+    description: Development server
+
+paths:
+  /stock/movements:
+    get:
+      summary: Get stock movements with filtering
+      description: Retrieve stock movement history with optional filtering
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: query
+          description: Filter by product ID
+          schema:
+            type: integer
+        - name: movementType
+          in: query
+          description: Filter by movement type
+          schema:
+            type: string
+            enum: [Incoming, Sale, Demo, Damage, Return, Adjustment]
+        - name: userId
+          in: query
+          description: Filter by user who made the movement
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          description: Filter movements from this date
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter movements until this date
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Stock movements retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Stock movements retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      movements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StockMovement'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create stock movement
+      description: Record a new stock movement (incoming, sale, demo, damage, return, adjustment)
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStockMovementRequest'
+      responses:
+        '201':
+          description: Stock movement created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Stock movement recorded successfully"
+                  data:
+                    $ref: '#/components/schemas/StockMovement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stock/movements/{id}:
+    get:
+      summary: Get stock movement by ID
+      description: Retrieve a specific stock movement by its ID
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Stock movement ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Stock movement retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Stock movement retrieved successfully"
+                  data:
+                    $ref: '#/components/schemas/StockMovement'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stock/inventory:
+    get:
+      summary: Get current inventory levels
+      description: Retrieve current inventory levels for all products or filtered products
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Filter by product type
+          schema:
+            type: string
+            enum: [Tire, Wheel]
+        - name: stockStatus
+          in: query
+          description: Filter by stock status
+          schema:
+            type: string
+            enum: [available, lowStock, outOfStock]
+        - name: brand
+          in: query
+          description: Filter by brand
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Inventory levels retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Inventory levels retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      inventory:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+                      summary:
+                        $ref: '#/components/schemas/InventorySummary'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stock/alerts:
+    get:
+      summary: Get stock alerts
+      description: Retrieve active stock alerts (low stock, out of stock)
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alertType
+          in: query
+          description: Filter by alert type
+          schema:
+            type: string
+            enum: [LowStock, OutOfStock, PriceChange]
+        - name: isRead
+          in: query
+          description: Filter by read status
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Stock alerts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Stock alerts retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      alerts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Alert'
+                      unreadCount:
+                        type: integer
+                        example: 5
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stock/alerts/{id}/read:
+    put:
+      summary: Mark alert as read
+      description: Mark a specific alert as read
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Alert ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Alert marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Alert marked as read"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stock/sale:
+    post:
+      summary: Process product sale
+      description: Record a product sale and update inventory
+      tags:
+        - Stock Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+      responses:
+        '201':
+          description: Sale processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Sale processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      movement:
+                        $ref: '#/components/schemas/StockMovement'
+                      newQuantity:
+                        type: integer
+                        example: 24
+                      alertGenerated:
+                        type: boolean
+                        example: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        productId:
+          type: integer
+          example: 1
+        product:
+          $ref: '#/components/schemas/Product'
+        userId:
+          type: integer
+          example: 1
+        user:
+          $ref: '#/components/schemas/User'
+        movementType:
+          type: string
+          enum: [Incoming, Sale, Demo, Damage, Return, Adjustment]
+          example: "Sale"
+        quantity:
+          type: integer
+          example: -1
+          description: "Positive for incoming, negative for outgoing"
+        reason:
+          type: string
+          example: "Customer purchase"
+          nullable: true
+        reference:
+          type: string
+          example: "INV-2024-001"
+          nullable: true
+        notes:
+          type: string
+          example: "Sold to customer John Doe"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-09-21T10:00:00Z"
+
+    CreateStockMovementRequest:
+      type: object
+      required:
+        - productId
+        - movementType
+        - quantity
+      properties:
+        productId:
+          type: integer
+          example: 1
+        movementType:
+          type: string
+          enum: [Incoming, Sale, Demo, Damage, Return, Adjustment]
+          example: "Sale"
+        quantity:
+          type: integer
+          example: -1
+          description: "Positive for incoming, negative for outgoing"
+        reason:
+          type: string
+          maxLength: 200
+          example: "Customer purchase"
+        reference:
+          type: string
+          maxLength: 100
+          example: "INV-2024-001"
+        notes:
+          type: string
+          maxLength: 500
+          example: "Sold to customer John Doe"
+
+    SaleRequest:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: integer
+          example: 1
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+        customerName:
+          type: string
+          maxLength: 100
+          example: "John Doe"
+        reference:
+          type: string
+          maxLength: 100
+          example: "INV-2024-001"
+        notes:
+          type: string
+          maxLength: 500
+          example: "Customer requested installation"
+
+    InventoryItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+          example: 1
+        product:
+          $ref: '#/components/schemas/Product'
+        quantityOnHand:
+          type: integer
+          example: 25
+        lowStockThreshold:
+          type: integer
+          example: 5
+        stockStatus:
+          type: string
+          enum: [available, lowStock, outOfStock]
+          example: "available"
+        lastMovementDate:
+          type: string
+          format: date-time
+          example: "2024-09-21T10:00:00Z"
+          nullable: true
+        totalValue:
+          type: number
+          format: decimal
+          example: 5000.00
+          description: "Total inventory value (quantity * cost price)"
+
+    InventorySummary:
+      type: object
+      properties:
+        totalProducts:
+          type: integer
+          example: 150
+        totalValue:
+          type: number
+          format: decimal
+          example: 75000.00
+        lowStockCount:
+          type: integer
+          example: 5
+        outOfStockCount:
+          type: integer
+          example: 2
+        tireCount:
+          type: integer
+          example: 100
+        wheelCount:
+          type: integer
+          example: 50
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        productId:
+          type: integer
+          example: 1
+        product:
+          $ref: '#/components/schemas/Product'
+        alertType:
+          type: string
+          enum: [LowStock, OutOfStock, PriceChange]
+          example: "LowStock"
+        message:
+          type: string
+          example: "Product MIC-PS4-225-45-17 is running low on stock (3 remaining)"
+        isRead:
+          type: boolean
+          example: false
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-09-21T10:00:00Z"
+        readAt:
+          type: string
+          format: date-time
+          example: "2024-09-21T11:00:00Z"
+          nullable: true
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          example: "MIC-PS4-225-45-17"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "John Doe"
+        role:
+          type: string
+          enum: [Admin, Owner, Staff]
+          example: "Staff"
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+        totalPages:
+          type: integer
+          example: 5
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "quantity"
+              message:
+                type: string
+                example: "Quantity is required"
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

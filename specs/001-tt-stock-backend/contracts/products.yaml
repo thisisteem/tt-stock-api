@@ -1,0 +1,637 @@
+openapi: 3.0.3
+info:
+  title: TT Stock API - Products
+  description: Product management endpoints for TT Stock Backend API
+  version: 1.0.0
+  contact:
+    name: TT Stock API
+    email: support@ttstock.com
+
+servers:
+  - url: https://api.ttstock.com/v1
+    description: Production server
+  - url: http://localhost:8080/v1
+    description: Development server
+
+paths:
+  /products:
+    get:
+      summary: Get products with filtering and pagination
+      description: Retrieve products with optional filtering by type, brand, stock status
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Filter by product type
+          schema:
+            type: string
+            enum: [Tire, Wheel]
+        - name: brand
+          in: query
+          description: Filter by brand
+          schema:
+            type: string
+        - name: stockStatus
+          in: query
+          description: Filter by stock status
+          schema:
+            type: string
+            enum: [available, lowStock, outOfStock]
+        - name: search
+          in: query
+          description: Search by brand, model, or SKU
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, brand, model, quantityOnHand, sellingPrice]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Products retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create new product
+      description: Create a new tire or wheel product
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product created successfully"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/{id}:
+    get:
+      summary: Get product by ID
+      description: Retrieve a specific product by its ID
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product retrieved successfully"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update product
+      description: Update an existing product
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete product
+      description: Soft delete a product (set isActive to false)
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product deleted successfully"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/search:
+    post:
+      summary: Advanced product search
+      description: Search products with complex criteria for tires and wheels
+      tags:
+        - Products
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductSearchRequest'
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Search completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                      totalCount:
+                        type: integer
+                        example: 25
+                      searchCriteria:
+                        $ref: '#/components/schemas/ProductSearchRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          example: "MIC-PS4-225-45-17"
+        description:
+          type: string
+          example: "High-performance summer tire"
+          nullable: true
+        imageBase64:
+          type: string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+          nullable: true
+        costPrice:
+          type: number
+          format: decimal
+          example: 150.00
+        sellingPrice:
+          type: number
+          format: decimal
+          example: 200.00
+        quantityOnHand:
+          type: integer
+          example: 25
+        lowStockThreshold:
+          type: integer
+          example: 5
+        isActive:
+          type: boolean
+          example: true
+        specifications:
+          $ref: '#/components/schemas/ProductSpecification'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-09-21T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-09-21T10:00:00Z"
+
+    ProductSpecification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        specType:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        specData:
+          type: object
+          description: Flexible JSON object containing product-specific specifications
+          example:
+            width: "225"
+            aspectRatio: "45"
+            diameter: "17"
+            loadIndex: "91"
+            speedRating: "W"
+            dotYear: "2023"
+            season: "All-Season"
+            runFlat: false
+
+    CreateProductRequest:
+      type: object
+      required:
+        - type
+        - brand
+        - model
+        - sku
+        - costPrice
+        - sellingPrice
+      properties:
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Michelin"
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Pilot Sport 4"
+        sku:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "MIC-PS4-225-45-17"
+        description:
+          type: string
+          maxLength: 500
+          example: "High-performance summer tire"
+        imageBase64:
+          type: string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+        costPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 150.00
+        sellingPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 200.00
+        quantityOnHand:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 25
+        lowStockThreshold:
+          type: integer
+          minimum: 1
+          default: 5
+          example: 5
+        specifications:
+          $ref: '#/components/schemas/ProductSpecification'
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Michelin"
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Pilot Sport 4"
+        description:
+          type: string
+          maxLength: 500
+          example: "High-performance summer tire"
+        imageBase64:
+          type: string
+          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+        costPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 150.00
+        sellingPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 200.00
+        lowStockThreshold:
+          type: integer
+          minimum: 1
+          example: 5
+        isActive:
+          type: boolean
+          example: true
+        specifications:
+          $ref: '#/components/schemas/ProductSpecification'
+
+    ProductSearchRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [Tire, Wheel]
+          example: "Tire"
+        brand:
+          type: string
+          example: "Michelin"
+        model:
+          type: string
+          example: "Pilot Sport"
+        searchText:
+          type: string
+          example: "225/45/17"
+        tireSpecs:
+          type: object
+          properties:
+            width:
+              type: string
+              example: "225"
+            aspectRatio:
+              type: string
+              example: "45"
+            diameter:
+              type: string
+              example: "17"
+            season:
+              type: string
+              example: "All-Season"
+        wheelSpecs:
+          type: object
+          properties:
+            diameter:
+              type: string
+              example: "17"
+            width:
+              type: string
+              example: "8.5"
+            offset:
+              type: string
+              example: "35"
+            boltPattern:
+              type: string
+              example: "5x114.3"
+            color:
+              type: string
+              example: "Black"
+        stockStatus:
+          type: string
+          enum: [available, lowStock, outOfStock]
+          example: "available"
+        priceRange:
+          type: object
+          properties:
+            min:
+              type: number
+              format: decimal
+              example: 100.00
+            max:
+              type: number
+              format: decimal
+              example: 300.00
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          example: 20
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+        totalPages:
+          type: integer
+          example: 5
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "sku"
+              message:
+                type: string
+                example: "SKU is required"
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
