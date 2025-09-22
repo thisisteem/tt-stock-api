@@ -1,0 +1,67 @@
+# TT Stock Backend API - Cursor IDE Context
+
+## Project Overview
+**Feature**: TT Stock Backend API Development  
+**Branch**: 001-tt-stock-backend  
+**Status**: Implementation Planning Complete  
+
+## Technology Stack
+- **Language**: Go 1.21+ with Gin framework
+- **Database**: PostgreSQL with GORM ORM
+- **Authentication**: JWT tokens with 1-day expiration
+- **Architecture**: Clean Architecture + SOLID principles
+- **Testing**: Go testing package, testify, httptest, gomock
+- **Image Storage**: Base64 strings in database
+
+## Project Structure
+```
+api/
+├── src/
+│   ├── models/          # Domain entities
+│   ├── services/        # Business logic (usecase layer)
+│   ├── handlers/        # HTTP handlers (delivery layer)
+│   ├── repositories/    # Data access layer
+│   ├── middleware/      # Auth, logging, validation
+│   └── config/          # Configuration management
+└── tests/
+    ├── contract/        # API contract tests
+    ├── integration/     # Integration tests
+    └── unit/           # Unit tests
+```
+
+## Data Flow Architecture
+**REQUEST → DELIVERY → USECASE → REPO → DATABASE**
+
+1. **Delivery Layer** (handlers/): HTTP request handling, validation, response formatting
+2. **UseCase Layer** (services/): Business logic, orchestration, domain rules
+3. **Repository Layer** (repositories/): Data access, database operations
+4. **Domain Layer** (models/): Entities, value objects, business rules
+
+## Key Entities
+- **User**: Phone number + PIN authentication, role-based access
+- **Product**: Tires and wheels with flexible JSON specifications
+- **StockMovement**: Complete audit trail of inventory changes
+- **Session**: JWT token management with expiration
+- **Alert**: Low stock notifications and system warnings
+
+## API Endpoints
+- **Authentication**: `/auth/login`, `/auth/logout`, `/auth/refresh`, `/auth/me`
+- **Products**: `/products`, `/products/{id}`, `/products/search`
+- **Stock**: `/stock/movements`, `/stock/inventory`, `/stock/alerts`, `/stock/sale`
+
+## Development Guidelines
+- **TDD**: Tests written before implementation
+- **Clean Code**: Single responsibility, dependency injection
+- **Performance**: <200ms p95 response time, 1000+ concurrent users
+- **Security**: Input validation, JWT authentication, audit logging
+- **Documentation**: OpenAPI specs, GoDoc comments
+
+## Recent Changes
+- **2024-09-21**: Initial implementation plan created
+- **2024-09-21**: Data model and API contracts designed
+- **2024-09-21**: Research completed for Go + Gin + PostgreSQL stack
+
+## Next Steps
+- Generate implementation tasks with `/tasks` command
+- Begin TDD implementation following Clean Architecture
+- Set up CI/CD pipeline with testing and quality gates
