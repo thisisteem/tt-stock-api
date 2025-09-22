@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: migrations-config
+  namespace: team-dev
+data:
+  001_initial_schema.sql: |
+    -- Migration: 001_initial_schema.sql
+    -- Description: Initial database schema creation for TT Stock Backend API
+    -- Created: 2024-01-01
+    -- Author: TT Stock Development Team
+
+    -- Enable UUID extension for PostgreSQL
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    -- Create users table
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        phone_number VARCHAR(15) UNIQUE NOT NULL,
+        pin VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL CHECK (role IN ('Admin', 'Owner', 'Staff')),
+        name VARCHAR(100) NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        last_login_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create products table
+    CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(20) NOT NULL CHECK (type IN ('Tire', 'Wheel')),
+        brand VARCHAR(100) NOT NULL,
+        model VARCHAR(100) NOT NULL,
+        sku VARCHAR(50) UNIQUE NOT NULL,
+        description TEXT,
+        image_base64 TEXT,
+        cost_price DECIMAL(10,2) NOT NULL,
+        selling_price DECIMAL(10,2) NOT NULL,
+        quantity_on_hand INTEGER NOT NULL DEFAULT 0,
+        low_stock_threshold INTEGER NOT NULL DEFAULT 5,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create product_specifications table
+    CREATE TABLE IF NOT EXISTS product_specifications (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        spec_type VARCHAR(20) NOT NULL CHECK (spec_type IN ('Tire', 'Wheel')),
+        spec_data JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create stock_movements table
+    CREATE TABLE IF NOT EXISTS stock_movements (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        movement_type VARCHAR(20) NOT NULL CHECK (movement_type IN ('In', 'Out', 'Adjustment', 'Return')),
+        quantity INTEGER NOT NULL,
+        reason VARCHAR(200) NOT NULL,
+        reference VARCHAR(50),
+        movement_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create sessions table
+    CREATE TABLE IF NOT EXISTS sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        access_token VARCHAR(500) NOT NULL,
+        refresh_token VARCHAR(500) NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create alerts table
+    CREATE TABLE IF NOT EXISTS alerts (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        alert_type VARCHAR(50) NOT NULL,
+        priority VARCHAR(20) NOT NULL CHECK (priority IN ('Low', 'Medium', 'High', 'Critical')),
+        title VARCHAR(200) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create updated_at trigger function
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+
+    -- Create triggers for updated_at columns (drop first if exists)
+    DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+    CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+    CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS update_product_specifications_updated_at ON product_specifications;
+    CREATE TRIGGER update_product_specifications_updated_at BEFORE UPDATE ON product_specifications
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS update_stock_movements_updated_at ON stock_movements;
+    CREATE TRIGGER update_stock_movements_updated_at BEFORE UPDATE ON stock_movements
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS update_sessions_updated_at ON sessions;
+    CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    DROP TRIGGER IF EXISTS update_alerts_updated_at ON alerts;
+    CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE ON alerts
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
