@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tt-stock-postgres
+    environment:
+      POSTGRES_DB: tt_stock
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - tt-stock-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tt_stock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: tt-stock-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tt-stock-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TT Stock API Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tt-stock-api
+    environment:
+      # Server configuration
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: password
+      DB_NAME: tt_stock
+      DB_SSL_MODE: disable
+      DB_MAX_OPEN_CONNS: 20
+      DB_MAX_IDLE_CONNS: 5
+      
+      # JWT configuration
+      JWT_SECRET_KEY: your-secret-key-change-in-production
+      JWT_TOKEN_LIFETIME: 24h
+      
+      # Application configuration
+      APP_ENV: development
+      LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tt-stock-network
+    volumes:
+      - ./src:/app/src:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tt-stock-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ttstock.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - tt-stock-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  tt-stock-network:
+    driver: bridge

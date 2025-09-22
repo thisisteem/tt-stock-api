@@ -1,0 +1,105 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters-settings:
+  gocyclo:
+    min-complexity: 10
+  funlen:
+    lines: 50
+    statements: 20
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  misspell:
+    locale: US
+  lll:
+    line-length: 100
+  goimports:
+    local-prefixes: tt-stock-api
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/gin-gonic/gin"
+            desc: "use internal handlers package instead"
+        allow:
+          - "github.com/gin-gonic/gin"
+          - "gorm.io/gorm"
+          - "gorm.io/driver/postgres"
+          - "gorm.io/gorm/logger"
+          - "github.com/golang-jwt/jwt/v5"
+          - "golang.org/x/crypto/bcrypt"
+          - "github.com/stretchr/testify"
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - errcheck
+    - exhaustive
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - mnd
+    - nakedret
+    - noctx
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - funlen
+        - gocyclo
+        - lll
+    - path: migrations/
+      linters:
+        - gosec
+        - goconst
+    - linters:
+        - lll
+      source: "^//go:generate "
+
+  exclude-use-default: false
+  exclude:
+    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+    - (G404|G307)
+    - Error return value of c\.(os\.|std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv) is not checked
