@@ -5,13 +5,21 @@
 
 set -e
 
-# Default test database URL (modify as needed)
-TEST_DB_URL=${TEST_DB_URL:-"postgres://localhost:5432/tt_stock_test_db?sslmode=disable"}
+# Default test database configuration (modify as needed)
+TEST_DB_HOST=${TEST_DB_HOST:-"localhost"}
+TEST_DB_PORT=${TEST_DB_PORT:-"5432"}
+TEST_DB_NAME=${TEST_DB_NAME:-"tt_stock_test_db"}
+TEST_DB_USER=${TEST_DB_USER:-"postgres"}
+TEST_DB_PASSWORD=${TEST_DB_PASSWORD:-""}
 
-echo "Running integration tests with database: $TEST_DB_URL"
+echo "Running integration tests with database: $TEST_DB_HOST:$TEST_DB_PORT/$TEST_DB_NAME"
 
-# Export the test database URL
-export TEST_DB_URL="$TEST_DB_URL"
+# Export the test database configuration
+export TEST_DB_HOST="$TEST_DB_HOST"
+export TEST_DB_PORT="$TEST_DB_PORT"
+export TEST_DB_NAME="$TEST_DB_NAME"
+export TEST_DB_USER="$TEST_DB_USER"
+export TEST_DB_PASSWORD="$TEST_DB_PASSWORD"
 
 # Run integration tests
 echo "Running authentication handler integration tests..."

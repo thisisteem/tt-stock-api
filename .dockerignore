@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+bin/
+dist/
+build/
+
+# Test files
+coverage.out
+coverage.html
+*.test
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Node modules (if any)
+node_modules/
+
+# Docker files (avoid recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Makefile (not needed in container)
+Makefile
+
+# Air config is needed for development

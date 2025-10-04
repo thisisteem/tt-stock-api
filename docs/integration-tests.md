@@ -56,8 +56,12 @@ Integration tests require a PostgreSQL test database. You can set this up in sev
 # Create test database
 createdb tt_stock_test_db
 
-# Set environment variable
-export TEST_DB_URL="postgres://localhost:5432/tt_stock_test_db?sslmode=disable"
+# Set environment variables
+export TEST_DB_HOST="localhost"
+export TEST_DB_PORT="5432"
+export TEST_DB_NAME="tt_stock_test_db"
+export TEST_DB_USER="postgres"
+export TEST_DB_PASSWORD=""
 ```
 
 #### Option 2: Docker PostgreSQL
@@ -65,8 +69,12 @@ export TEST_DB_URL="postgres://localhost:5432/tt_stock_test_db?sslmode=disable"
 # Run PostgreSQL in Docker
 docker run --name postgres-test -e POSTGRES_DB=tt_stock_test_db -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:15
 
-# Set environment variable
-export TEST_DB_URL="postgres://postgres:password@localhost:5432/tt_stock_test_db?sslmode=disable"
+# Set environment variables
+export TEST_DB_HOST="localhost"
+export TEST_DB_PORT="5432"
+export TEST_DB_NAME="tt_stock_test_db"
+export TEST_DB_USER="postgres"
+export TEST_DB_PASSWORD="password"
 ```
 
 #### Option 3: In-Memory Database (SQLite)
@@ -79,14 +87,15 @@ For faster tests, you could modify the tests to use SQLite in-memory database, t
 # Run all integration tests
 ./scripts/run-integration-tests.sh
 
-# Or with custom database URL
-TEST_DB_URL="your-test-db-url" ./scripts/run-integration-tests.sh
+# Or with custom database configuration
+TEST_DB_HOST="your-host" TEST_DB_USER="your-user" ./scripts/run-integration-tests.sh
 ```
 
 ### Method 2: Direct Go Test
 ```bash
-# Set test database URL
-export TEST_DB_URL="postgres://localhost:5432/tt_stock_test_db?sslmode=disable"
+# Set test database configuration
+export TEST_DB_HOST="localhost"
+export TEST_DB_NAME="tt_stock_test_db"
 
 # Run all integration tests
 go test -v ./internal/auth -run Integration
@@ -99,7 +108,7 @@ go test -v ./internal/auth -run Integration -cover
 ```
 
 ### Method 3: Skip Integration Tests
-If no `TEST_DB_URL` is set, integration tests will be automatically skipped:
+If no `TEST_DB_HOST` is set, integration tests will be automatically skipped:
 
 ```bash
 # This will skip integration tests
@@ -214,6 +223,9 @@ jobs:
           go-version: '1.21'
       - name: Run Integration Tests
         env:
-          TEST_DB_URL: postgres://postgres:password@localhost:5432/tt_stock_test_db?sslmode=disable
+          TEST_DB_HOST: localhost
+          TEST_DB_USER: postgres
+          TEST_DB_PASSWORD: password
+          TEST_DB_NAME: tt_stock_test_db
         run: go test -v ./internal/auth -run Integration
 ```

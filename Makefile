@@ -131,13 +131,14 @@ migrate-down:
 	@echo "This is a destructive operation. Make sure you have backups."
 	@read -p "Are you sure you want to continue? (y/N): " confirm && [ "$$confirm" = "y" ]
 	@echo "Dropping tables..."
-	@if [ -n "$$DB_URL" ]; then \
-		psql "$$DB_URL" -c "DROP TABLE IF EXISTS token_blacklist CASCADE; DROP TABLE IF EXISTS users CASCADE;"; \
-		echo "Tables dropped successfully"; \
-	else \
-		echo "DB_URL environment variable not set. Please set it and try again."; \
+	@if ! docker ps | grep -q tt-stock-postgres; then \
+		echo "❌ PostgreSQL container not running. Start it with: make docker-dev"; \
 		exit 1; \
 	fi
+	@docker-compose exec -T postgres psql -U tt_stock_user -d tt_stock_db -c \
+		"DROP TABLE IF EXISTS token_blacklist CASCADE; DROP TABLE IF EXISTS users CASCADE;" \
+		&& echo "✅ Tables dropped successfully" \
+		|| echo "❌ Failed to drop tables"
 
 # Database reset (drop and recreate tables)
 migrate-reset: migrate-down
@@ -147,26 +148,22 @@ migrate-reset: migrate-down
 	@pkill -f "$(BINARY_NAME)" || true
 	@echo "Database reset completed"
 
-# Create a new user (requires psql and DB_URL environment variable)
+# Create a new user (uses Docker containers)
 create-user:
 	@echo "Creating a new user..."
-	@if [ -z "$$PHONE" ] || [ -z "$$PIN" ]; then \
+	@if [ -z "$(PHONE)" ] || [ -z "$(PIN)" ]; then \
 		echo "Usage: make create-user PHONE=0123456789 PIN=123456"; \
 		exit 1; \
 	fi
-	@if [ -z "$$DB_URL" ]; then \
-		echo "DB_URL environment variable not set. Please set it and try again."; \
+	@if ! docker ps | grep -q tt-stock-postgres; then \
+		echo "❌ PostgreSQL container not running. Start it with: make docker-dev"; \
 		exit 1; \
 	fi
-	@echo "Creating user with phone: $$PHONE"
-	@PIN_HASH=$$(echo -n "$$PIN" | $(GOCMD) run -c 'package main; import ("fmt"; "golang.org/x/crypto/bcrypt"); func main() { hash, _ := bcrypt.GenerateFromPassword([]byte(os.Args[1]), 12); fmt.Print(string(hash)) }' "$$PIN" 2>/dev/null || echo "Error generating hash"); \
-	if [ "$$PIN_HASH" = "Error generating hash" ]; then \
-		echo "Failed to generate PIN hash. Using psql to create user..."; \
-		psql "$$DB_URL" -c "INSERT INTO users (phone_number, pin_hash) VALUES ('$$PHONE', crypt('$$PIN', gen_salt('bf', 12)));"; \
-	else \
-		psql "$$DB_URL" -c "INSERT INTO users (phone_number, pin_hash) VALUES ('$$PHONE', '$$PIN_HASH');"; \
-	fi
-	@echo "User created successfully"
+	@echo "Creating user with phone: $(PHONE)"
+	@docker-compose exec -T postgres psql -U tt_stock_user -d tt_stock_db -c \
+		"INSERT INTO users (phone_number, pin_hash, created_at, updated_at) VALUES ('$(PHONE)', crypt('$(PIN)', gen_salt('bf', 12)), NOW(), NOW());" \
+		&& echo "✅ User created successfully" \
+		|| echo "❌ Failed to create user (user may already exist)"
 
 # Check code quality (runs multiple checks)
 check: fmt vet lint test
@@ -185,6 +182,101 @@ install-tools:
 $(BINARY_PATH):
 	@mkdir -p ./bin
 
+# Docker Commands
+docker-build:
+	@echo "Building Docker images..."
+	docker build --target production -t tt-stock-api:latest .
+	docker build --target development -t tt-stock-api:dev .
+	@echo "Docker images built successfully"
+
+docker-build-prod:
+	@echo "Building production Docker image..."
+	docker build --target production -t tt-stock-api:latest .
+	@echo "Production Docker image built successfully"
+
+docker-build-dev:
+	@echo "Building development Docker image..."
+	docker build --target development -t tt-stock-api:dev .
+	@echo "Development Docker image built successfully"
+
+docker-up:
+	@echo "Starting Docker services..."
+	@if [ ! -f .env ]; then \
+		echo "❌ .env file not found. Please create one based on .env.example"; \
+		echo "Required variables: JWT_SECRET, DB_PASSWORD"; \
+		exit 1; \
+	fi
+	docker-compose up -d
+	@echo "Docker services started. Use 'make docker-logs' to view logs."
+
+docker-down:
+	@echo "Stopping Docker services..."
+	docker-compose down
+	@echo "Docker services stopped"
+
+docker-dev:
+	@echo "Starting development environment..."
+	@if [ ! -f .env ]; then \
+		echo "❌ .env file not found. Please create one based on .env.example"; \
+		echo "Required variables: JWT_SECRET, DB_PASSWORD"; \
+		exit 1; \
+	fi
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+	@echo "Development environment started"
+
+docker-dev-build:
+	@echo "Building and starting development environment..."
+	@if [ ! -f .env ]; then \
+		echo "❌ .env file not found. Please create one based on .env.example"; \
+		echo "Required variables: JWT_SECRET, DB_PASSWORD"; \
+		exit 1; \
+	fi
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+docker-logs:
+	@echo "Showing Docker container logs..."
+	docker-compose logs -f
+
+docker-logs-api:
+	@echo "Showing API container logs..."
+	docker-compose logs -f api
+
+docker-logs-db:
+	@echo "Showing database container logs..."
+	docker-compose logs -f postgres
+
+docker-exec-api:
+	@echo "Accessing API container shell..."
+	docker-compose exec api sh
+
+docker-exec-db:
+	@echo "Accessing database container..."
+	docker-compose exec postgres psql -U $(shell grep DB_USER .env | cut -d '=' -f2) -d $(shell grep DB_NAME .env | cut -d '=' -f2)
+
+docker-test:
+	@echo "Running tests in Docker container..."
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec api go test ./...
+
+docker-clean:
+	@echo "Cleaning up Docker resources..."
+	docker-compose down -v --remove-orphans
+	docker system prune -f
+	@echo "Docker cleanup completed"
+
+docker-clean-all:
+	@echo "WARNING: This will remove all Docker containers, images, and volumes!"
+	@read -p "Are you sure you want to continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
+	docker-compose down -v --remove-orphans
+	docker system prune -a -f --volumes
+	@echo "Complete Docker cleanup completed"
+
+docker-reset:
+	@echo "Resetting Docker environment..."
+	$(MAKE) docker-down
+	docker-compose down -v
+	$(MAKE) docker-up
+	@echo "Docker environment reset completed"
+
 # Show help
 help:
 	@echo "TT Stock API - Available Make Commands:"
@@ -199,6 +291,24 @@ help:
 	@echo "  dev            Run with hot reload (requires air)"
 	@echo "  deps           Download and tidy dependencies"
 	@echo "  deps-update    Update all dependencies"
+	@echo ""
+	@echo "Docker Commands:"
+	@echo "  docker-build       Build both production and development Docker images"
+	@echo "  docker-build-prod  Build production Docker image only"
+	@echo "  docker-build-dev   Build development Docker image only"
+	@echo "  docker-up          Start Docker services (production mode)"
+	@echo "  docker-down        Stop Docker services"
+	@echo "  docker-dev         Start development environment with hot reload"
+	@echo "  docker-dev-build   Build and start development environment"
+	@echo "  docker-logs        Show logs from all containers"
+	@echo "  docker-logs-api    Show API container logs only"
+	@echo "  docker-logs-db     Show database container logs only"
+	@echo "  docker-exec-api    Access API container shell"
+	@echo "  docker-exec-db     Access database container"
+	@echo "  docker-test        Run tests in Docker container"
+	@echo "  docker-clean       Clean up Docker resources"
+	@echo "  docker-clean-all   Remove all Docker containers, images, and volumes"
+	@echo "  docker-reset       Reset Docker environment"
 	@echo ""
 	@echo "Testing Commands:"
 	@echo "  test           Run tests"
@@ -224,9 +334,13 @@ help:
 	@echo "  help           Show this help message"
 	@echo ""
 	@echo "Environment Variables:"
-	@echo "  DB_URL         PostgreSQL connection string"
-	@echo "  JWT_SECRET     Secret key for JWT tokens"
+	@echo "  JWT_SECRET     Secret key for JWT tokens (required, min 32 chars)"
+	@echo "  DB_PASSWORD    Database password (required)"
+	@echo "  DB_NAME        Database name (default: tt_stock_db)"
+	@echo "  DB_USER        Database user (default: tt_stock_user)"
+	@echo "  DB_HOST        Database host (default: postgres for Docker)"
+	@echo "  DB_PORT        Database port (default: 5432)"
 	@echo "  PORT           Server port (default: 8080)"
 	@echo "  ENV            Environment (development/production)"
 
-.PHONY: build build-prod run dev clean test test-coverage test-coverage-html test-watch deps deps-update fmt vet lint security migrate-up migrate-down migrate-reset create-user check install-tools help
+.PHONY: build build-prod run dev clean test test-coverage test-coverage-html test-watch deps deps-update fmt vet lint security migrate-up migrate-down migrate-reset create-user check install-tools docker-build docker-build-prod docker-build-dev docker-up docker-down docker-dev docker-dev-build docker-logs docker-logs-api docker-logs-db docker-exec-api docker-exec-db docker-test docker-clean docker-clean-all docker-reset help

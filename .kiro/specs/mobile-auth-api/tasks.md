@@ -3,7 +3,7 @@
 - [x] 1. Set up project structure and core configuration
   - Create Go module and directory structure following the specified layout
   - Set up go.mod with required dependencies (Fiber, JWT, bcrypt, PostgreSQL driver)
-  - Create .env file template with JWT_SECRET, DB_URL configuration
+  - Create .env file template with JWT_SECRET, database configuration (DB_HOST, DB_PORT, etc.)
   - Implement config loader in `internal/config/config.go` to read environment variables
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 

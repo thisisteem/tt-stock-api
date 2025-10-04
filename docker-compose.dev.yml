@@ -1,0 +1,51 @@
+services:
+  # Development overrides for API service
+  api:
+    build:
+      target: development
+    image: tt-stock-api:dev
+    container_name: tt-stock-api-dev
+    environment:
+      # Development-specific environment
+      ENV: development
+      LOG_LEVEL: debug
+      HOT_RELOAD: "true"
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Cache Go modules for faster builds
+      - go_modules:/go/pkg/mod
+      # Exclude bin directory to avoid conflicts
+      - /app/bin
+    ports:
+      # Expose additional port for debugging
+      - "${PORT:-8080}:8080"
+      - "2345:2345"  # Delve debugger port
+    # Override command for development
+    command: ["air", "-c", ".air.toml"]
+    # Development doesn't need strict health checks
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 2
+      start_period: 60s
+
+  # Development overrides for PostgreSQL
+  postgres:
+    container_name: tt-stock-postgres-dev
+    # Expose PostgreSQL port for direct access during development
+    ports:
+      - "5432:5432"
+    # Less strict health check for development
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Additional volumes for development
+volumes:
+  go_modules:
+    driver: local

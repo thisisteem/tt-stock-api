@@ -58,7 +58,7 @@ make migrate-down
 
 ## Environment Configuration
 - `JWT_SECRET`: Secret key for JWT token signing
-- `DB_URL`: PostgreSQL connection string
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`: PostgreSQL connection details
 - `PORT`: Server port (default: 8080)
 
 ## Validation Rules

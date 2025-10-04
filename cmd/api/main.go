@@ -15,6 +15,12 @@ import (
 )
 
 func main() {
+	// Validate environment variables before any other initialization
+	if err := config.ValidateEnvironment(); err != nil {
+		config.PrintValidationError(err)
+		os.Exit(1)
+	}
+
 	// Load configuration from environment variables
 	cfg := config.Load()
 	log.Printf("Starting TT Stock API with configuration: Port=%s, Env=%s", cfg.Port, cfg.Env)

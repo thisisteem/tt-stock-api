@@ -34,12 +34,20 @@ type IntegrationTestSuite struct {
 
 // setupIntegrationTest initializes the test environment with real database
 func setupIntegrationTest(t *testing.T) *IntegrationTestSuite {
-	// Use test database URL or fallback to in-memory/test database
-	testDBURL := os.Getenv("TEST_DB_URL")
-	if testDBURL == "" {
+	// Build test database URL from environment variables
+	testDBHost := os.Getenv("TEST_DB_HOST")
+	if testDBHost == "" {
 		// Skip integration tests if no test database is configured
-		t.Skip("TEST_DB_URL not set, skipping integration tests")
+		t.Skip("TEST_DB_HOST not set, skipping integration tests")
 	}
+	
+	testDBPort := getEnvOrDefault("TEST_DB_PORT", "5432")
+	testDBName := getEnvOrDefault("TEST_DB_NAME", "tt_stock_test_db")
+	testDBUser := getEnvOrDefault("TEST_DB_USER", "postgres")
+	testDBPassword := os.Getenv("TEST_DB_PASSWORD")
+	
+	testDBURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		testDBUser, testDBPassword, testDBHost, testDBPort, testDBName)
 
 	// Connect to test database
 	database, err := db.Connect(testDBURL)
@@ -737,4 +745,11 @@ func TestConcurrentRequests_Integration(t *testing.T) {
 			assert.NoError(t, err, "Concurrent login request failed")
 		}
 	})
+}// g
+etEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

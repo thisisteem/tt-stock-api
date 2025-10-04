@@ -5,6 +5,7 @@ import (
 	"tt-stock-api/internal/auth"
 	"tt-stock-api/internal/config"
 	"tt-stock-api/internal/db"
+	"tt-stock-api/internal/health"
 	"tt-stock-api/internal/user"
 )
 
@@ -25,6 +26,12 @@ func RegisterRoutes(app *fiber.App, deps *Dependencies) {
 
 	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
+	healthHandler := health.NewHandler(deps.DB.DB, deps.Config)
+
+	// Health check routes (no authentication required)
+	app.Get("/health", healthHandler.Health)
+	app.Get("/ready", healthHandler.Readiness)
+	app.Get("/live", healthHandler.Liveness)
 
 	// Create API v1 group
 	api := app.Group("/api/v1")

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"strconv"
 )
@@ -17,10 +18,27 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		JWTSecret: getEnv("JWT_SECRET", "default-jwt-secret"),
-		DBUrl:     getEnv("DB_URL", "postgres://localhost:5432/tt_stock_db?sslmode=disable"),
+		DBUrl:     buildDBUrl(),
 		Port:      getEnv("PORT", "8080"),
 		Env:       getEnv("ENV", "development"),
 	}
+}
+
+// buildDBUrl constructs the database URL from individual environment variables
+func buildDBUrl() string {
+	// Build from individual components (Docker format)
+	host := getEnv("DB_HOST", "localhost")
+	port := getEnv("DB_PORT", "5432")
+	user := getEnv("DB_USER", "postgres")
+	password := getEnv("DB_PASSWORD", "")
+	dbname := getEnv("DB_NAME", "tt_stock_db")
+	sslmode := getEnv("DB_SSLMODE", "disable")
+
+	// URL-encode the password to handle special characters
+	encodedPassword := url.QueryEscape(password)
+	
+	// Construct the PostgreSQL connection string
+	return "postgres://" + user + ":" + encodedPassword + "@" + host + ":" + port + "/" + dbname + "?sslmode=" + sslmode
 }
 
 // getEnv gets an environment variable with a fallback value
