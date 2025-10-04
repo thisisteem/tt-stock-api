@@ -92,7 +92,7 @@ Core business logic for user authentication and validation.
 
 **Key Methods:**
 - `AuthenticateUser(phoneNumber, pin string) (*User, error)` - Validates credentials
-- `GenerateTokens(userID string) (string, string, error)` - Creates access and refresh tokens
+- `GenerateTokens(userID uuid.UUID) (string, string, error)` - Creates access and refresh tokens
 - `ValidatePhoneNumber(phoneNumber string) error` - Thai phone number format validation
 - `ValidatePin(pin string) error` - 6-digit PIN format validation
 
@@ -127,9 +127,9 @@ type User struct {
 ### Token Blacklist Model
 ```go
 type TokenBlacklist struct {
-    ID            string    `json:"id" db:"id"`
+    ID            uuid.UUID `json:"id" db:"id"`
     Token         string    `json:"token" db:"token"`
-    UserID        string    `json:"user_id" db:"user_id"`
+    UserID        uuid.UUID `json:"user_id" db:"user_id"`
     TokenType     string    `json:"token_type" db:"token_type"` // "access" or "refresh"
     ExpiresAt     time.Time `json:"expires_at" db:"expires_at"`
     BlacklistedAt time.Time `json:"blacklisted_at" db:"blacklisted_at"`

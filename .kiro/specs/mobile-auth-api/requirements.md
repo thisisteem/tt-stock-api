@@ -2,13 +2,13 @@
 
 ## Introduction
 
-This feature involves building API applications that provide simple authentication and login functionality specifically designed for mobile applications. The system will handle user authentication using Thai phone numbers as user IDs and 6-digit PINs as passwords, session management, and secure token-based access control to enable mobile apps to authenticate existing users and maintain secure sessions. User accounts will be created manually in the database by administrators.
+This feature involves building the authentication system for a tire & wheel stock management mobile application. As the first phase of the project, we will implement secure authentication and login functionality that will serve as the foundation for future inventory management features. The system will handle user authentication using Thai phone numbers as user IDs and 6-digit PINs as passwords, session management, and secure token-based access control. This authentication layer will protect future endpoints for tire inventory, wheel stock, sales tracking, and other business operations. User accounts will be created manually in the database by administrators.
 
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As a mobile app user, I want to log in with my phone number and PIN, so that I can access my account and app features.
+**User Story:** As a tire & wheel shop employee, I want to log in with my phone number and PIN, so that I can access the stock management system and perform my daily tasks.
 
 #### Acceptance Criteria
 
@@ -22,7 +22,7 @@ This feature involves building API applications that provide simple authenticati
 
 ### Requirement 2
 
-**User Story:** As a mobile app user, I want my login session to remain active, so that I don't have to re-authenticate frequently.
+**User Story:** As a tire & wheel shop employee, I want my login session to remain active during my work shift, so that I don't have to re-authenticate frequently while managing inventory.
 
 #### Acceptance Criteria
 
@@ -34,7 +34,7 @@ This feature involves building API applications that provide simple authenticati
 
 ### Requirement 3
 
-**User Story:** As a mobile app developer, I want to protect API endpoints, so that only authenticated users can access protected resources.
+**User Story:** As a system developer, I want to protect stock management API endpoints, so that only authenticated employees can access tire and wheel inventory data.
 
 #### Acceptance Criteria
 
@@ -46,7 +46,7 @@ This feature involves building API applications that provide simple authenticati
 
 ### Requirement 4
 
-**User Story:** As a mobile app user, I want to securely log out, so that my account remains protected when I'm not using the app.
+**User Story:** As a tire & wheel shop employee, I want to securely log out at the end of my shift, so that my account and the inventory system remain protected.
 
 #### Acceptance Criteria
 
@@ -58,7 +58,7 @@ This feature involves building API applications that provide simple authenticati
 
 ### Requirement 5
 
-**User Story:** As a system administrator, I want user PINs to be securely stored, so that user data remains protected even if the database is compromised.
+**User Story:** As a tire & wheel shop owner/administrator, I want employee PINs to be securely stored, so that employee access credentials and business data remain protected even if the database is compromised.
 
 #### Acceptance Criteria
 
